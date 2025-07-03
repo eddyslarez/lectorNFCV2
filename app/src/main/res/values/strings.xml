@@ -1,3 +1,13 @@
 <resources>
-    <string name="app_name">LectorNFC</string>
+    <string name="app_name">Advanced Mifare Pro</string>
+    <string name="nfc_not_supported">NFC no soportado en este dispositivo</string>
+    <string name="nfc_disabled">NFC está deshabilitado. Por favor, actívalo en configuración.</string>
+    <string name="card_detected">Tarjeta detectada</string>
+    <string name="reading_card">Leyendo tarjeta...</string>
+    <string name="writing_card">Escribiendo tarjeta...</string>
+    <string name="cracking_card">Crackeando tarjeta...</string>
+    <string name="operation_completed">Operación completada</string>
+    <string name="operation_failed">Operación fallida</string>
+    <string name="export_success">Datos exportados exitosamente</string>
+    <string name="export_failed">Error al exportar datos</string>
 </resources>

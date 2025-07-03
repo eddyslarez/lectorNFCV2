@@ -1,10 +1,16 @@
-package com.eddyslarez.lectornfc
+package com.eddyslarez.lectornfc.domain.attacks
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.*
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.math.log2
+import kotlin.math.pow
+import kotlin.math.sqrt
+
 
 /**
  * Generador de claves MKF32 profesional para sistemas RFID/NFC
@@ -598,185 +604,3 @@ class MKFKey32 {
         CRYPTOGRAPHIC
     }
 }
-
-
-
-/////////2///////
-//class MKFKey32 {
-//
-//    fun generateKey(uid: ByteArray, sector: Int): ByteArray {
-//        val key = ByteArray(6)
-//
-//        // Использование UID как основы
-//        for (i in 0 until minOf(uid.size, 4)) {
-//            key[i] = uid[i]
-//        }
-//
-//        // Применение трансформаций специфичных для сектора
-//        val sectorTransform = transformSector(sector)
-//        val uidTransform = transformUID(uid)
-//
-//        key[4] = (sectorTransform and 0xFF).toByte()
-//        key[5] = ((sectorTransform shr 8) and 0xFF).toByte()
-//
-//        // Применение расширенного алгоритма MKF32
-//        return applyEnhancedMKF32Algorithm(key, uid, sector)
-//    }
-//
-//    private fun transformSector(sector: Int): Int {
-//        var result = sector
-//
-//        // Множественные трансформации
-//        result = (result shl 2) or (result shr 6)
-//        result = result xor 0x3A
-//        result = result + 0x15
-//        result = result xor (sector * 0x47)
-//        result = ((result shl 1) or (result shr 15)) and 0xFFFF
-//
-//        return result
-//    }
-//
-//    private fun transformUID(uid: ByteArray): Int {
-//        var result = 0
-//
-//        uid.forEachIndexed { index, byte ->
-//            result = result xor ((byte.toInt() and 0xFF) shl (index % 4))
-//        }
-//
-//        return result
-//    }
-//
-//    private fun applyEnhancedMKF32Algorithm(key: ByteArray, uid: ByteArray, sector: Int): ByteArray {
-//        val result = key.clone()
-//
-//        // Расширенные трансформации
-//        for (round in 0 until 3) {
-//            for (i in result.indices) {
-//                result[i] = (result[i].toInt() xor uid[i % uid.size].toInt()).toByte()
-//                result[i] = rotateLeft(result[i], 1 + round)
-//                result[i] = (result[i].toInt() xor sector).toByte()
-//            }
-//
-//            // Перемешивание между раундами
-//            if (round < 2) {
-//                shuffleArray(result)
-//            }
-//        }
-//
-//        // Применение финальной трансформации
-//        val checksum = calculateEnhancedChecksum(uid, sector)
-//        result[0] = (result[0].toInt() xor checksum).toByte()
-//        result[5] = (result[5].toInt() xor (checksum shr 8)).toByte()
-//
-//        // Дополнительное усложнение
-//        result[2] = (result[2].toInt() xor (checksum shr 16)).toByte()
-//        result[3] = (result[3].toInt() xor (checksum shr 24)).toByte()
-//
-//        return result
-//    }
-//
-//    private fun shuffleArray(array: ByteArray) {
-//        for (i in array.indices) {
-//            val j = Random.nextInt(array.size)
-//            val temp = array[i]
-//            array[i] = array[j]
-//            array[j] = temp
-//        }
-//    }
-//
-//    private fun rotateLeft(value: Byte, positions: Int): Byte {
-//        val intValue = value.toInt() and 0xFF
-//        val normalizedPositions = positions % 8
-//        return ((intValue shl normalizedPositions) or (intValue shr (8 - normalizedPositions))).toByte()
-//    }
-//
-//    private fun calculateEnhancedChecksum(uid: ByteArray, sector: Int): Int {
-//        var checksum = 0
-//
-//        uid.forEachIndexed { index, byte ->
-//            checksum += (byte.toInt() and 0xFF) * (index + 1)
-//        }
-//
-//        checksum = (checksum xor sector) and 0xFFFFFF
-//        checksum = checksum xor (checksum shl 8)
-//        checksum = checksum xor (checksum shr 16)
-//
-//        return checksum and 0xFFFFFF
-//    }
-//}
-
-
-
-////////// 1 /////
-//
-//class MKFKey32 {
-//
-//    fun generateKey(uid: ByteArray, sector: Int): ByteArray {
-//        // Algoritmo MKF32 para generar claves
-//        val key = ByteArray(6)
-//
-//        // Usar UID como base
-//        for (i in 0 until minOf(uid.size, 4)) {
-//            key[i] = uid[i]
-//        }
-//
-//        // Aplicar transformaciones específicas del sector
-//        val sectorTransform = transformSector(sector)
-//
-//        // Combinar con transformación del sector
-//        key[4] = (sectorTransform and 0xFF).toByte()
-//        key[5] = ((sectorTransform shr 8) and 0xFF).toByte()
-//
-//        // Aplicar algoritmo MKF32
-//        return applyMKF32Algorithm(key, uid, sector)
-//    }
-//
-//    private fun transformSector(sector: Int): Int {
-//        // Transformación específica del sector
-//        var result = sector
-//        result = (result shl 2) or (result shr 6)
-//        result = result xor 0x3A
-//        result = result + 0x15
-//        return result and 0xFFFF
-//    }
-//
-//    private fun applyMKF32Algorithm(key: ByteArray, uid: ByteArray, sector: Int): ByteArray {
-//        val result = key.clone()
-//
-//        // Aplicar rotaciones y XOR
-//        for (i in result.indices) {
-//            result[i] = (result[i].toInt() xor uid[i % uid.size].toInt()).toByte()
-//            result[i] = rotateLeft(result[i], 1)
-//        }
-//
-//        // Aplicar transformación final
-//        val checksum = calculateChecksum(uid, sector)
-//        result[0] = (result[0].toInt() xor checksum).toByte()
-//        result[5] = (result[5].toInt() xor (checksum shr 8)).toByte()
-//
-//        return result
-//    }
-//
-//    private fun rotateLeft(value: Byte, positions: Int): Byte {
-//        val intValue = value.toInt() and 0xFF
-//        return ((intValue shl positions) or (intValue shr (8 - positions))).toByte()
-//    }
-//
-//    private fun calculateChecksum(uid: ByteArray, sector: Int): Int {
-//        var checksum = 0
-//
-//        for (byte in uid) {
-//            checksum += byte.toInt() and 0xFF
-//        }
-//
-//        checksum = (checksum xor sector) and 0xFFFF
-//        return checksum
-//    }
-//}
-//
-//// Clases de datos auxiliares
-//data class HardnestedTrace(
-//    val nonce: ByteArray,
-//    val encrypted: ByteArray,
-//    val index: Int
-//)

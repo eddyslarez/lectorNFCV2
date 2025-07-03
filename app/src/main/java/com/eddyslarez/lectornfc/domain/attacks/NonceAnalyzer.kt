@@ -1,113 +1,20 @@
-package com.eddyslarez.lectornfc
-//
-//class NonceAnalyzer {
-//
-//    fun analyzeNonces(nonces: List<NonceData>, uid: ByteArray): ByteArray? {
-//        if (nonces.size < 2) return null
-//
-//        try {
-//            // Análisis básico de patrones en nonces
-//            val patterns = findPatterns(nonces)
-//
-//            // Intentar derivar clave basada en patrones
-//            for (pattern in patterns) {
-//                val potentialKey = deriveKeyFromPattern(pattern, uid)
-//                if (potentialKey != null) {
-//                    return potentialKey
-//                }
-//            }
-//
-//            // Método alternativo: análisis de debilidad temporal
-//            return analyzeTemporalWeakness(nonces, uid)
-//
-//        } catch (e: Exception) {
-//            return null
-//        }
-//    }
-//
-//    private fun findPatterns(nonces: List<NonceData>): List<ByteArray> {
-//        val patterns = mutableListOf<ByteArray>()
-//
-//        for (i in 0 until nonces.size - 1) {
-//            val current = nonces[i].nonce
-//            val next = nonces[i + 1].nonce
-//
-//            // XOR entre nonces consecutivos
-//            val xor = ByteArray(current.size)
-//            for (j in current.indices) {
-//                xor[j] = (current[j].toInt() xor next[j].toInt()).toByte()
-//            }
-//            patterns.add(xor)
-//        }
-//
-//        return patterns
-//    }
-//
-//    private fun deriveKeyFromPattern(pattern: ByteArray, uid: ByteArray): ByteArray? {
-//        // Intento de derivación de clave basada en patrones
-//        val key = ByteArray(6)
-//
-//        // Combinar UID con patrón
-//        for (i in 0 until 4) {
-//            key[i] = (uid[i].toInt() xor pattern[i % pattern.size].toInt()).toByte()
-//        }
-//
-//        // Completar con datos del patrón
-//        key[4] = pattern[0]
-//        key[5] = (pattern[1].toInt() xor pattern[2].toInt()).toByte()
-//
-//        return key
-//    }
-//
-//    private fun analyzeTemporalWeakness(nonces: List<NonceData>, uid: ByteArray): ByteArray? {
-//        // Análisis de debilidad temporal (simulado)
-//        val timeBasedKey = ByteArray(6)
-//
-//        // Usar timestamp como semilla
-//        val timestamp = System.currentTimeMillis()
-//        val seed = (timestamp and 0xFFFF).toInt()
-//
-//        // Generar clave basada en UID y timestamp
-//        for (i in 0 until 4) {
-//            timeBasedKey[i] = uid[i]
-//        }
-//
-//        timeBasedKey[4] = (seed and 0xFF).toByte()
-//        timeBasedKey[5] = ((seed shr 8) and 0xFF).toByte()
-//
-//        return timeBasedKey
-//    }
-//}
-import kotlinx.coroutines.*
-import kotlin.math.*
-import java.security.MessageDigest
+package com.eddyslarez.lectornfc.domain.attacks
+
+import com.eddyslarez.lectornfc.data.models.NonceData
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.plus
+import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.ByteBuffer
-import java.util.*
+import java.security.MessageDigest
+import java.util.Date
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
+import kotlin.math.abs
+import kotlin.math.log2
+import kotlin.math.min
+import kotlin.math.pow
 
-/**
- * Clase de datos para almacenar información de nonces
- */
-//data class NonceData(
-//    val nonce: ByteArray,
-//    val timestamp: Long = System.currentTimeMillis(),
-//    val sequenceNumber: Int = 0,
-//    val source: String = "unknown"
-//) {
-//    override fun equals(other: Any?): Boolean {
-//        if (this === other) return true
-//        if (javaClass != other?.javaClass) return false
-//        other as NonceData
-//        return nonce.contentEquals(other.nonce) && timestamp == other.timestamp
-//    }
-//
-//    override fun hashCode(): Int {
-//        var result = nonce.contentHashCode()
-//        result = 31 * result + timestamp.hashCode()
-//        return result
-//    }
-//}
 
 /**
  * Resultado del análisis de nonces

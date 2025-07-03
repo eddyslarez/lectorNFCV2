@@ -1,4 +1,4 @@
-package com.eddyslarez.lectornfc
+package com.eddyslarez.lectornfc.domain.attacks
 
 import android.nfc.tech.MifareClassic
 import java.security.SecureRandom
@@ -507,71 +507,3 @@ class HardnestedAttacker {
         return entropy > 0.5 && entropy < 2.5
     }
 }
-
-//class HardnestedAttacker {
-//
-//    fun attack(mifare: MifareClassic, knownSector: Int, knownKey: ByteArray, targetSector: Int): ByteArray? {
-//        try {
-//            // Simular ataque hardnested
-//            val traces = collectTraces(mifare, knownSector, knownKey, targetSector)
-//
-//            if (traces.size >= 10) {
-//                return analyzeTraces(traces)
-//            }
-//
-//            return null
-//
-//        } catch (e: Exception) {
-//            return null
-//        }
-//    }
-//
-//    private fun collectTraces(mifare: MifareClassic, knownSector: Int, knownKey: ByteArray, targetSector: Int): List<HardnestedTrace> {
-//        val traces = mutableListOf<HardnestedTrace>()
-//
-//        try {
-//            // Autenticar con clave conocida
-//            if (mifare.authenticateSectorWithKeyA(knownSector, knownKey)) {
-//
-//                // Simular recolección de trazas
-//                for (i in 0 until 20) {
-//                    val nonce = ByteArray(4)
-//                    val encrypted = ByteArray(4)
-//
-//                    // Simular datos del hardnested
-//                    kotlin.random.Random.nextBytes(nonce)
-//                    kotlin.random.Random.nextBytes(encrypted)
-//
-//                    traces.add(HardnestedTrace(nonce, encrypted, i))
-//
-//                    // Pausa entre trazas
-//                    Thread.sleep(10)
-//                }
-//            }
-//
-//        } catch (e: Exception) {
-//            // Error en recolección
-//        }
-//
-//        return traces
-//    }
-//
-//    private fun analyzeTraces(traces: List<HardnestedTrace>): ByteArray? {
-//        // Análisis simplificado de trazas hardnested
-//        val keyCandidate = ByteArray(6)
-//
-//        // Usar estadísticas de las trazas
-//        val nonceStats = traces.map { it.nonce[0].toInt() and 0xFF }.average()
-//        val encryptedStats = traces.map { it.encrypted[0].toInt() and 0xFF }.average()
-//
-//        // Derivar clave basada en estadísticas
-//        keyCandidate[0] = (nonceStats.toInt() xor encryptedStats.toInt()).toByte()
-//        keyCandidate[1] = traces.first().nonce[1]
-//        keyCandidate[2] = traces.last().encrypted[2]
-//        keyCandidate[3] = (traces.size and 0xFF).toByte()
-//        keyCandidate[4] = traces.first().nonce[3]
-//        keyCandidate[5] = traces.last().encrypted[0]
-//
-//        return keyCandidate
-//    }
-//}
