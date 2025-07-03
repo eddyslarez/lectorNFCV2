@@ -1,6 +1,5 @@
 package com.eddyslarez.lectornfc.presentation.viewmodel
 
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eddyslarez.lectornfc.data.database.entities.ScanHistoryEntity
@@ -32,32 +31,12 @@ class HistoryViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.getAllScanResults().collect { scanResults ->
-                    // Convertir ScanResult a ScanHistoryEntity
-                    val historyEntities = scanResults.map { scanResult ->
-                        ScanHistoryEntity(
-                            uid = scanResult.uid,
-                            cardType = scanResult.cardType,
-                            timestamp = scanResult.timestamp.time,
-                            totalSectors = scanResult.sectorCount,
-                            crackedSectors = scanResult.crackedSectors,
-                            totalBlocks = scanResult.totalBlocks,
-                            readableBlocks = scanResult.readableBlocks,
-                            foundKeys = 0, // Se podría calcular desde FoundKey
-                            attackMethod = scanResult.attackMethod,
-                            operationMode = "SCAN",
-                            scanDuration = scanResult.duration,
-                            successRate = if (scanResult.sectorCount > 0) {
-                                (scanResult.crackedSectors.toFloat() / scanResult.sectorCount) * 100
-                            } else 0f,
-                            rawData = "",
-                            notes = scanResult.notes
-                        )
-                    }
+                repository.getAllScanHistory().collect { historyEntities ->
                     _historyItems.value = historyEntities
                 }
             } catch (e: Exception) {
                 // Manejar error
+                _historyItems.value = emptyList()
             } finally {
                 _isLoading.value = false
             }
@@ -90,8 +69,7 @@ class HistoryViewModel(
     fun deleteItem(item: ScanHistoryEntity) {
         viewModelScope.launch {
             try {
-                // Aquí necesitarías implementar el método de borrado en el repositorio
-                // repository.deleteScanHistory(item)
+                repository.deleteScanHistory(item)
                 loadHistory() // Recargar después de borrar
                 loadStatistics()
             } catch (e: Exception) {
@@ -103,8 +81,7 @@ class HistoryViewModel(
     fun clearHistory() {
         viewModelScope.launch {
             try {
-                // Implementar borrado masivo
-                // repository.clearAllHistory()
+                repository.clearAllHistory()
                 _historyItems.value = emptyList()
                 loadStatistics()
             } catch (e: Exception) {
@@ -134,84 +111,6 @@ class HistoryViewModel(
                 // Manejar error
             }
         }
-    }
-
-    fun filterHistory(query: String, dateRange: DateRange? = null, attackMethod: String? = null) {
-        viewModelScope.launch {
-            try {
-                val allItems = _historyItems.value
-                val filteredItems = allItems.filter { item ->
-                    val matchesQuery = query.isEmpty() ||
-                            item.uid.contains(query, ignoreCase = true) ||
-                            item.cardType.contains(query, ignoreCase = true) ||
-                            item.notes.contains(query, ignoreCase = true)
-
-                    val matchesDateRange = dateRange == null ||
-                            (item.timestamp >= dateRange.startDate && item.timestamp <= dateRange.endDate)
-
-                    val matchesAttackMethod = attackMethod == null ||
-                            item.attackMethod.equals(attackMethod, ignoreCase = true)
-
-                    matchesQuery && matchesDateRange && matchesAttackMethod
-                }
-
-                _historyItems.value = filteredItems
-            } catch (e: Exception) {
-                // Manejar error
-            }
-        }
-    }
-
-    fun sortHistory(sortBy: SortCriteria, ascending: Boolean = true) {
-        viewModelScope.launch {
-            val sortedItems = when (sortBy) {
-                SortCriteria.DATE -> {
-                    if (ascending) _historyItems.value.sortedBy { it.timestamp }
-                    else _historyItems.value.sortedByDescending { it.timestamp }
-                }
-                SortCriteria.SUCCESS_RATE -> {
-                    if (ascending) _historyItems.value.sortedBy { it.successRate }
-                    else _historyItems.value.sortedByDescending { it.successRate }
-                }
-                SortCriteria.CARD_TYPE -> {
-                    if (ascending) _historyItems.value.sortedBy { it.cardType }
-                    else _historyItems.value.sortedByDescending { it.cardType }
-                }
-                SortCriteria.ATTACK_METHOD -> {
-                    if (ascending) _historyItems.value.sortedBy { it.attackMethod }
-                    else _historyItems.value.sortedByDescending { it.attackMethod }
-                }
-                SortCriteria.DURATION -> {
-                    if (ascending) _historyItems.value.sortedBy { it.scanDuration }
-                    else _historyItems.value.sortedByDescending { it.scanDuration }
-                }
-            }
-            _historyItems.value = sortedItems
-        }
-    }
-
-    fun getItemsByDateRange(startDate: Long, endDate: Long): List<ScanHistoryEntity> {
-        return _historyItems.value.filter { item ->
-            item.timestamp >= startDate && item.timestamp <= endDate
-        }
-    }
-
-    fun getItemsByAttackMethod(attackMethod: String): List<ScanHistoryEntity> {
-        return _historyItems.value.filter { item ->
-            item.attackMethod.equals(attackMethod, ignoreCase = true)
-        }
-    }
-
-    fun getSuccessfulItems(): List<ScanHistoryEntity> {
-        return _historyItems.value.filter { item ->
-            item.successRate > 0f
-        }
-    }
-
-    fun getRecentItems(count: Int = 10): List<ScanHistoryEntity> {
-        return _historyItems.value
-            .sortedByDescending { it.timestamp }
-            .take(count)
     }
 
     data class HistoryStatistics(

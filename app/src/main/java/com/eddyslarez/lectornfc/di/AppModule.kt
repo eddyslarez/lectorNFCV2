@@ -10,13 +10,6 @@ import com.eddyslarez.lectornfc.utils.*
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
-import com.eddyslarez.lectornfc.domain.attacks.*
-import com.eddyslarez.lectornfc.domain.usecases.*
-import com.eddyslarez.lectornfc.presentation.viewmodel.*
-import com.eddyslarez.lectornfc.utils.*
-import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.dsl.module
 
 val appModule = module {
 

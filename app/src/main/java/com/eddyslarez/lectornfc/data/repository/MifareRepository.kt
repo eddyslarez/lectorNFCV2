@@ -1,30 +1,13 @@
 package com.eddyslarez.lectornfc.data.repository
 
-
 import android.nfc.tech.MifareClassic
-import com.eddyslarez.lectornfc.data.database.dao.FoundKeyDao
-import com.eddyslarez.lectornfc.data.database.dao.ScanResultDao
-import com.eddyslarez.lectornfc.data.database.dao.ScanSessionDao
-import com.eddyslarez.lectornfc.data.database.entities.FoundKey
-import com.eddyslarez.lectornfc.data.database.entities.ScanResult
-import com.eddyslarez.lectornfc.data.database.entities.ScanSession
-import com.eddyslarez.lectornfc.data.models.AttackMethod
-import com.eddyslarez.lectornfc.data.models.BlockData
-import com.eddyslarez.lectornfc.data.models.KeyPair
-import com.eddyslarez.lectornfc.domain.usecases.CrackResult
-import com.eddyslarez.lectornfc.domain.usecases.WriteResult
-import com.eddyslarez.lectornfc.utils.NFCHelper
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.withContext
-import java.util.Date
-import java.util.UUID
 import com.eddyslarez.lectornfc.data.database.dao.*
 import com.eddyslarez.lectornfc.data.database.entities.*
 import com.eddyslarez.lectornfc.data.models.*
+import com.eddyslarez.lectornfc.domain.usecases.CrackResult
+import com.eddyslarez.lectornfc.utils.NFCHelper
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import java.util.*
@@ -43,7 +26,7 @@ class MifareRepository(
             val sessionId = UUID.randomUUID().toString()
             val startTime = System.currentTimeMillis()
 
-            // Crear sesión
+            // Crear sesión en base de datos
             val session = ScanSession(
                 sessionId = sessionId,
                 cardUid = uid.joinToString("") { "%02X".format(it) },
@@ -66,7 +49,7 @@ class MifareRepository(
                 emit(blocks.toList())
             }
 
-            // Actualizar sesión y guardar en historial
+            // Actualizar sesión
             val endTime = System.currentTimeMillis()
             val crackedSectors = blocks.map { it.sector }.distinct().count { s ->
                 blocks.filter { it.sector == s }.any { it.cracked }
@@ -79,6 +62,23 @@ class MifareRepository(
                     rawData = serializeBlocks(blocks)
                 )
             )
+
+            // Guardar resultado del escaneo
+            val scanResult = ScanResult(
+                sessionId = sessionId,
+                uid = uid.joinToString("") { "%02X".format(it) },
+                cardType = "Mifare Classic",
+                sectorCount = mifare.sectorCount,
+                crackedSectors = crackedSectors,
+                totalBlocks = blocks.size,
+                readableBlocks = blocks.count { it.cracked },
+                timestamp = Date(),
+                duration = endTime - startTime,
+                attackMethod = "READ",
+                success = crackedSectors > 0,
+                notes = "Lectura completada"
+            )
+            scanResultDao.insertScanResult(scanResult)
 
             // Guardar en historial
             saveToHistory(uid, "READ", blocks, emptyMap(), startTime, endTime)
@@ -199,23 +199,12 @@ class MifareRepository(
         }
     }
 
-    suspend fun writeCard(mifare: MifareClassic, data: List<BlockData>, showConfirmation: Boolean = true): Flow<WriteResult> = flow {
+    suspend fun writeCard(mifare: MifareClassic, data: List<BlockData>): Flow<WriteResult> = flow {
         try {
             mifare.connect()
             var writtenBlocks = 0
             val errors = mutableListOf<String>()
             val writableBlocks = data.filter { !it.isTrailer && it.data.isNotEmpty() }
-
-            if (showConfirmation) {
-                // Aquí se debería mostrar un diálogo de confirmación
-                emit(WriteResult(
-                    success = false,
-                    writtenBlocks = 0,
-                    totalBlocks = writableBlocks.size,
-                    errors = listOf("Confirmación requerida")
-                ))
-                return@flow
-            }
 
             for ((index, blockData) in writableBlocks.withIndex()) {
                 try {
@@ -374,163 +363,6 @@ class MifareRepository(
         }
     }
 
-    suspend fun cloneCard(sourceCard: MifareClassic, targetCard: MifareClassic, cloneUID: Boolean = false): Flow<CloneResult> = flow {
-        try {
-            // Primer paso: leer la tarjeta fuente
-            emit(CloneResult(CloneStep.READING_SOURCE, 0, "Leyendo tarjeta fuente..."))
-
-            val sourceBlocks = mutableListOf<BlockData>()
-            sourceCard.connect()
-
-            for (sector in 0 until sourceCard.sectorCount) {
-                val sectorBlocks = readSector(sourceCard, sector)
-                sourceBlocks.addAll(sectorBlocks)
-
-                val progress = ((sector + 1) * 50) / sourceCard.sectorCount
-                emit(CloneResult(CloneStep.READING_SOURCE, progress, "Leyendo sector $sector/${sourceCard.sectorCount}"))
-            }
-            sourceCard.close()
-
-            // Segundo paso: escribir en la tarjeta destino
-            emit(CloneResult(CloneStep.WRITING_TARGET, 50, "Escribiendo en tarjeta destino..."))
-
-            targetCard.connect()
-            var writtenBlocks = 0
-            val writableBlocks = sourceBlocks.filter { !it.isTrailer && it.data.isNotEmpty() }
-
-            for ((index, block) in writableBlocks.withIndex()) {
-                try {
-                    if (writeBlock(targetCard, block)) {
-                        writtenBlocks++
-                    }
-                } catch (e: Exception) {
-                    // Continuar con el siguiente bloque
-                }
-
-                val progress = 50 + ((index + 1) * 45) / writableBlocks.size
-                emit(CloneResult(CloneStep.WRITING_TARGET, progress, "Escribiendo bloque ${index + 1}/${writableBlocks.size}"))
-            }
-
-            // Clonar UID si es posible
-            if (cloneUID) {
-                emit(CloneResult(CloneStep.CLONING_UID, 95, "Clonando UID..."))
-                try {
-                    // Intentar clonar UID (esto depende del hardware y puede no funcionar)
-                    val sourceUID = sourceCard.tag.id
-                    // La mayoría de tarjetas no permiten cambiar el UID
-                    emit(CloneResult(CloneStep.CLONING_UID, 100, "UID clonado (puede no ser soportado)"))
-                } catch (e: Exception) {
-                    emit(CloneResult(CloneStep.CLONING_UID, 100, "Clonación de UID no soportada"))
-                }
-            }
-
-            targetCard.close()
-            emit(CloneResult(CloneStep.COMPLETED, 100, "Clonación completada: $writtenBlocks bloques escritos"))
-
-        } catch (e: Exception) {
-            emit(CloneResult(CloneStep.ERROR, 0, "Error en clonación: ${e.message}"))
-        } finally {
-            try {
-                sourceCard.close()
-                targetCard.close()
-            } catch (e: Exception) {
-                // Ignorar
-            }
-        }
-    }.flowOn(Dispatchers.IO)
-
-    suspend fun formatCard(mifare: MifareClassic): Flow<FormatResult> = flow {
-        try {
-            mifare.connect()
-            var formattedBlocks = 0
-            val totalBlocks = mifare.blockCount
-            val emptyData = ByteArray(16) { 0x00 }
-
-            for (block in 0 until totalBlocks) {
-                try {
-                    val sector = if (block < 128) block / 4 else 32 + (block - 128) / 16
-                    val isTrailer = (block < 128 && block % 4 == 3) || (block >= 128 && block % 16 == 15)
-
-                    if (!isTrailer) {
-                        // Intentar autenticar y formatear
-                        val nfcHelper = NFCHelper()
-                        val keys = nfcHelper.getCommonKeys()
-
-                        for (key in keys) {
-                            try {
-                                if (mifare.authenticateSectorWithKeyA(sector, key) ||
-                                    mifare.authenticateSectorWithKeyB(sector, key)) {
-                                    mifare.writeBlock(block, emptyData)
-                                    formattedBlocks++
-                                    break
-                                }
-                            } catch (e: Exception) {
-                                continue
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Continuar con el siguiente bloque
-                }
-
-                val progress = ((block + 1) * 100) / totalBlocks
-                emit(FormatResult(
-                    success = true,
-                    progress = progress,
-                    formattedBlocks = formattedBlocks,
-                    totalBlocks = totalBlocks,
-                    message = "Formateando bloque ${block + 1}/$totalBlocks"
-                ))
-            }
-
-            emit(FormatResult(
-                success = true,
-                progress = 100,
-                formattedBlocks = formattedBlocks,
-                totalBlocks = totalBlocks,
-                message = "Formateo completado: $formattedBlocks bloques formateados"
-            ))
-
-        } catch (e: Exception) {
-            emit(FormatResult(
-                success = false,
-                progress = 0,
-                formattedBlocks = 0,
-                totalBlocks = 0,
-                message = "Error en formateo: ${e.message}"
-            ))
-        } finally {
-            try {
-                mifare.close()
-            } catch (e: Exception) {
-                // Ignorar
-            }
-        }
-    }.flowOn(Dispatchers.IO)
-
-    suspend fun writeBlock(mifare: MifareClassic, blockData: BlockData): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val key = blockData.keyUsed ?: return@withContext false
-
-                val authenticated = if (blockData.keyType == "B") {
-                    mifare.authenticateSectorWithKeyB(blockData.sector, key)
-                } else {
-                    mifare.authenticateSectorWithKeyA(blockData.sector, key)
-                }
-
-                if (authenticated) {
-                    mifare.writeBlock(blockData.block, blockData.data)
-                    true
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                false
-            }
-        }
-    }
-
     private suspend fun saveToHistory(
         uid: ByteArray,
         attackMethod: String,
@@ -608,31 +440,4 @@ data class WriteResult(
     val writtenBlocks: Int,
     val totalBlocks: Int,
     val errors: List<String> = emptyList()
-)
-
-data class CrackResult(
-    val sector: Int,
-    val keyPair: KeyPair?,
-    val method: AttackMethod,
-    val success: Boolean,
-    val timeElapsed: Long,
-    val attempts: Int = 0
-)
-
-data class CloneResult(
-    val step: CloneStep,
-    val progress: Int,
-    val message: String
-)
-
-enum class CloneStep {
-    READING_SOURCE, WRITING_TARGET, CLONING_UID, COMPLETED, ERROR
-}
-
-data class FormatResult(
-    val success: Boolean,
-    val progress: Int,
-    val formattedBlocks: Int,
-    val totalBlocks: Int,
-    val message: String
 )
