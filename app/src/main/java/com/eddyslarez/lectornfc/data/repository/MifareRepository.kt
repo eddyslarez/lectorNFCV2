@@ -271,6 +271,53 @@ class MifareRepository(
         }
     }.flowOn(Dispatchers.IO)
 
+    suspend fun writeBlock(mifare: MifareClassic, blockData: BlockData): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (!mifare.isConnected) {
+                    mifare.connect()
+                }
+
+                val key = blockData.keyUsed ?: return@withContext false
+
+                // Intentar autenticar
+                val authenticated = try {
+                    if (blockData.keyType == "B") {
+                        mifare.authenticateSectorWithKeyB(blockData.sector, key)
+                    } else {
+                        mifare.authenticateSectorWithKeyA(blockData.sector, key)
+                    }
+                } catch (e: Exception) {
+                    false
+                }
+
+                if (authenticated && !blockData.isTrailer) {
+                    try {
+                        mifare.writeBlock(blockData.block, blockData.data)
+                        
+                        // Verificar escritura
+                        val verification = mifare.readBlock(blockData.block)
+                        verification.contentEquals(blockData.data)
+                    } catch (e: Exception) {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } catch (e: Exception) {
+                false
+            } finally {
+                try {
+                    if (mifare.isConnected) {
+                        mifare.close()
+                    }
+                } catch (e: Exception) {
+                    // Ignorar
+                }
+            }
+        }
+    }
+
     suspend fun crackCard(mifare: MifareClassic, method: AttackMethod): Flow<CrackResult> = flow {
         try {
             mifare.connect()

@@ -1,16 +1,26 @@
 package com.eddyslarez.lectornfc.domain.usecases
 
-
 import android.nfc.tech.MifareClassic
 import com.eddyslarez.lectornfc.data.models.BlockData
 import com.eddyslarez.lectornfc.data.repository.MifareRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class WriteCardUseCase(
     private val repository: MifareRepository
 ) {
-    suspend operator fun invoke(mifare: MifareClassic, data: List<BlockData>): Flow<WriteResult> {
-        return repository.writeCard(mifare, data)
+    suspend operator fun invoke(
+        mifare: MifareClassic,
+        data: List<BlockData>
+    ): Flow<WriteResult> {
+        return repository.writeCard(mifare, data).map { repositoryResult ->
+            WriteResult(
+                success = repositoryResult.success,
+                writtenBlocks = repositoryResult.writtenBlocks,
+                totalBlocks = repositoryResult.totalBlocks,
+                errors = repositoryResult.errors
+            )
+        }
     }
 
     suspend fun writeSingleBlock(mifare: MifareClassic, blockData: BlockData): Boolean {
