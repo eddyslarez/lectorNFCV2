@@ -19,9 +19,11 @@ import com.eddyslarez.lectornfc.utils.Converters
         ScanSession::class,
         ScanHistoryEntity::class
     ],
-    version = 1,
-    exportSchema = false,
-
+    version = 2, // Incrementamos la versión de 1 a 2
+    exportSchema = true, // Cambiamos a true para generar esquemas
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2)
+    ]
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -41,11 +43,16 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "mifare_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration() // Esto recreará la DB si hay problemas
                     .build()
                 INSTANCE = instance
                 instance
             }
+        }
+        
+        // Método para limpiar la instancia (útil para testing)
+        fun clearInstance() {
+            INSTANCE = null
         }
     }
 }

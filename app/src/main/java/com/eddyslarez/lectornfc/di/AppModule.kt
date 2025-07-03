@@ -13,14 +13,15 @@ import org.koin.dsl.module
 
 val appModule = module {
 
-    // Database
+    // Database - Configuración mejorada
     single {
         Room.databaseBuilder(
             androidContext(),
             AppDatabase::class.java,
             "mifare_database"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration() // Recrear DB si hay problemas de migración
+            .enableMultiInstanceInvalidation() // Sincronización entre instancias
             .build()
     }
 
