@@ -1,6 +1,8 @@
 package com.eddyslarez.lectornfc.data.repository
 
+
 import android.nfc.tech.MifareClassic
+import android.util.Log
 import com.eddyslarez.lectornfc.data.database.dao.*
 import com.eddyslarez.lectornfc.data.database.entities.*
 import com.eddyslarez.lectornfc.data.models.*
@@ -294,7 +296,7 @@ class MifareRepository(
                 if (authenticated && !blockData.isTrailer) {
                     try {
                         mifare.writeBlock(blockData.block, blockData.data)
-                        
+
                         // Verificar escritura
                         val verification = mifare.readBlock(blockData.block)
                         verification.contentEquals(blockData.data)
@@ -409,6 +411,13 @@ class MifareRepository(
             }
         }
     }
+    suspend fun getAllScanHistoryOnce(): List<ScanHistoryEntity> {
+        return scanHistoryDao.getAllScanHistoryOnce()
+    }
+
+    suspend fun markAsExported(id: Int) {
+        scanHistoryDao.markAsExported(id)
+    }
 
     private suspend fun saveToHistory(
         uid: ByteArray,
@@ -419,6 +428,8 @@ class MifareRepository(
         endTime: Long
     ) {
         try {
+            Log.d("SaveToHistory", "Saving scan to history...")
+
             val totalSectors = if (blocks.isNotEmpty()) blocks.map { it.sector }.distinct().size else foundKeys.keys.size
             val crackedSectors = foundKeys.size
             val successRate = if (totalSectors > 0) (crackedSectors.toFloat() / totalSectors) * 100 else 0f
@@ -445,12 +456,16 @@ class MifareRepository(
                         )
                     }
                 )),
-                notes = "Escaneo automático"
+                notes = "Escaneo automático",
+                exported = false
+
             )
 
             scanHistoryDao.insertScanHistory(historyEntity)
+            Log.d("SaveToHistory", "Scan saved successfully with UID: ${historyEntity.uid}")
+
         } catch (e: Exception) {
-            // Log error pero no fallar
+            Log.e("SaveToHistory", "Error saving to history", e)
         }
     }
 

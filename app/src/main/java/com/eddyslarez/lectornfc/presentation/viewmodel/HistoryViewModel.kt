@@ -1,5 +1,7 @@
 package com.eddyslarez.lectornfc.presentation.viewmodel
 
+
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eddyslarez.lectornfc.data.database.entities.ScanHistoryEntity
@@ -31,13 +33,45 @@ class HistoryViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.getAllScanHistory().collect { historyEntities ->
-                    _historyItems.value = historyEntities
-                }
+                // CAMBIO PRINCIPAL: Usar una sola llamada en lugar de collect
+                val historyEntities = repository.getAllScanHistoryOnce() // Método que retorna List directamente
+                _historyItems.value = historyEntities
             } catch (e: Exception) {
-                // Manejar error
+                Log.e("HistoryViewModel", "Error loading history", e)
                 _historyItems.value = emptyList()
             } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    fun debugCheckDatabase() {
+        viewModelScope.launch {
+            try {
+                val count = repository.getTotalScansCount()
+                Log.d("HistoryViewModel", "Total scans in database: $count")
+
+                val items = repository.getAllScanHistoryOnce()
+                Log.d("HistoryViewModel", "Items retrieved: ${items.size}")
+                items.forEach { item ->
+                    Log.d("HistoryViewModel", "Item: ${item.uid} - ${item.timestamp}")
+                }
+            } catch (e: Exception) {
+                Log.e("HistoryViewModel", "Error checking database", e)
+            }
+        }
+    }
+    // ALTERNATIVA: Si quieres observar cambios en tiempo real
+    fun observeHistory() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.getAllScanHistory().collect { historyEntities ->
+                    _historyItems.value = historyEntities
+                    _isLoading.value = false // Solo la primera vez
+                }
+            } catch (e: Exception) {
+                Log.e("HistoryViewModel", "Error observing history", e)
+                _historyItems.value = emptyList()
                 _isLoading.value = false
             }
         }
@@ -61,7 +95,7 @@ class HistoryViewModel(
                     } else 0f
                 )
             } catch (e: Exception) {
-                // Manejar error
+                Log.e("HistoryViewModel", "Error loading statistics", e)
             }
         }
     }
@@ -73,7 +107,7 @@ class HistoryViewModel(
                 loadHistory() // Recargar después de borrar
                 loadStatistics()
             } catch (e: Exception) {
-                // Manejar error
+                Log.e("HistoryViewModel", "Error deleting item", e)
             }
         }
     }
@@ -85,7 +119,7 @@ class HistoryViewModel(
                 _historyItems.value = emptyList()
                 loadStatistics()
             } catch (e: Exception) {
-                // Manejar error
+                Log.e("HistoryViewModel", "Error clearing history", e)
             }
         }
     }
@@ -93,24 +127,20 @@ class HistoryViewModel(
     fun exportItem(item: ScanHistoryEntity) {
         viewModelScope.launch {
             try {
-                // Implementar exportación individual
-                // val exportManager = ExportManager(context)
-                // exportManager.exportScanHistory(item)
+                // Marcar como exportado
+                repository.markAsExported(item.id)
+                loadHistory() // Recargar para mostrar el cambio
+                // Aquí puedes agregar la lógica de exportación
+                Log.d("HistoryViewModel", "Exporting item: ${item.uid}")
             } catch (e: Exception) {
-                // Manejar error
+                Log.e("HistoryViewModel", "Error exporting item", e)
             }
         }
     }
 
     fun viewItem(item: ScanHistoryEntity) {
-        viewModelScope.launch {
-            try {
-                // Implementar visualización detallada
-                // Navegar a una pantalla de detalles o mostrar un diálogo
-            } catch (e: Exception) {
-                // Manejar error
-            }
-        }
+        // Implementar navegación a detalles
+        Log.d("HistoryViewModel", "Viewing item: ${item.uid}")
     }
 
     data class HistoryStatistics(

@@ -44,4 +44,10 @@ interface ScanHistoryDao {
 
     @Query("SELECT COUNT(DISTINCT uid) FROM scan_history")
     suspend fun getUniqueCardsCount(): Int
+
+    @Query("SELECT * FROM scan_history ORDER BY timestamp DESC")
+    suspend fun getAllScanHistoryOnce(): List<ScanHistoryEntity>
+
+    @Query("UPDATE scan_history SET exported = 1 WHERE id = :id")
+    suspend fun markAsExported(id: Int)
 }

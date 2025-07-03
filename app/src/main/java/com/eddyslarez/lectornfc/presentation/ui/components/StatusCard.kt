@@ -1,5 +1,6 @@
 package com.eddyslarez.lectornfc.presentation.ui.components
 
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ fun StatusCard(
     crackedSectors: Int,
     operationMode: OperationMode
 ) {
+    Log.d("estadodelsistema", status)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2A1A))

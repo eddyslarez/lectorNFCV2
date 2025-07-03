@@ -1,5 +1,6 @@
 package com.eddyslarez.lectornfc.presentation.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,20 @@ fun HistoryScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<ScanHistoryEntity?>(null) }
 
+
+
+    LaunchedEffect(historyItems) {
+        Log.d("HistoryScreen", "History items count: ${historyItems.size}")
+    }
+
+    LaunchedEffect(isLoading) {
+        Log.d("HistoryScreen", "Loading state: $isLoading")
+    }
+
+    LaunchedEffect(Unit) {
+        Log.d("HistoryScreen", "Calling loadHistory()")
+        viewModel.loadHistory()
+    }
     LaunchedEffect(Unit) {
         viewModel.loadHistory()
     }
